@@ -3,7 +3,7 @@
 #  The GUI will accept whatever is input so use with prudence. No input validation at this time. This    #
 #  code ain't pretty but It'll work in a pinch                                                           #
 #                                                                                                        #
-#  v1.0  Ronnie Grubbs 'gambl3'  22 SEP 15                                                               #
+#  v1.0  R. Grubbs 'gambl3'  22 SEP 15                                                               #
 ##########################################################################################################
 
 #!/bin/bash 
@@ -25,12 +25,12 @@ snort_type (){
     esac
 }
 snort_white (){
-  /bin/cat /tmp/rule  >> "$SN_WHITE_LIST_PATH"
-  rm -rf /tmp/rule
+  zenity --forms --title "Whitelist Rule" --text "Add IP to Whitelist" --separator " " --add-entry "IP Format: x.x.x.x/x" --add-entry "Description Format:  #comment"  >> "$SN_WHITE_LIST_PATH"
+  nsm_sensor_ps-restart --only-snort-alert
 }
 snort_black (){
-  /bin/cat /tmp/rule  >> "$SN_BLACK_LIST_PATH"
-  rm -rf /tmp/rule
+  zenity --forms --title "Blacklist Rule" --text "Add IP to Blacklist" --separator " " --add-entry "IP Format: x.x.x.x/x" --add-entry "Description Format:  #comment" >> "$SN_BLACK_LIST_PATH"
+  nsm_sensor_ps-restart --only-snort-alert
 }
 
 ##  function to make a rule for suricata this will grow quite a bit
