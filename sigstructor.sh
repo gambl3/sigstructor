@@ -3,7 +3,11 @@
 #  The GUI will accept whatever is input so use with prudence. No input validation at this time. This    #
 #  code ain't pretty but It'll work in a pinch                                                           #
 #                                                                                                        #
+<<<<<<< HEAD
 #  v1.0  Ronnie Grubbs 'gambl3'  22 SEP 15                                                               #
+=======
+#  v1.0  R. Grubbs 'gambl3'  22 SEP 15                                                                   #
+>>>>>>> origin/master
 ##########################################################################################################
 
 #!/bin/bash 
