@@ -3,7 +3,7 @@
 #  The GUI will accept whatever is input so use with prudence. No input validation at this time. This    #
 #  code ain't pretty but It'll work in a pinch                                                           #
 #                                                                                                        #
-#  v1.0  R. Grubbs 'gambl3'  22 SEP 15                                                               #
+#  v1.0  Ronnie Grubbs 'gambl3'  22 SEP 15                                                               #
 ##########################################################################################################
 
 #!/bin/bash 
@@ -16,7 +16,7 @@ SN_CONF="/etc/nsm/templates/snort/snort.conf"
 
 ## functions that that helps write desired rule type 
 snort_type (){
-  TYPE=$(zenity --entry --text "What type of rule is this? Valid options are "local" "whitelist" "blacklist"")
+  TYPE=$(zenity --entry --text "What type of rule is this? Valid options are:   "local"   "whitelist"   "blacklist"")
     case "$TYPE" in
 	local)		snort_local ;;
 	whitelist)	snort_white ;;
@@ -26,71 +26,56 @@ snort_type (){
 }
 snort_white (){
   zenity --forms --title "Whitelist Rule" --text "Add IP to Whitelist" --separator " " --add-entry "IP Format: x.x.x.x/x" --add-entry "Description Format:  #comment"  >> "$SN_WHITE_LIST_PATH"
-  nsm_sensor_ps-restart --only-snort-alert
+  if [ $? == "0" ]; then
+    nsm_sensor_ps-restart --only-snort-alert
+  else
+    zenity --error --text "Operation Canceled"
+  fi 
 }
 snort_black (){
   zenity --forms --title "Blacklist Rule" --text "Add IP to Blacklist" --separator " " --add-entry "IP Format: x.x.x.x/x" --add-entry "Description Format:  #comment" >> "$SN_BLACK_LIST_PATH"
-  nsm_sensor_ps-restart --only-snort-alert
+  if [ $? == "0" ]; then
+    nsm_sensor_ps-restart --only-snort-alert
+  else
+    zenity --error --text "Operation Canceled"
+  fi
+}
+snort_local (){                    
+  ## zenity form for basic rules.  Not tested with PCRE or advanced options                                            
+  zenity --forms --title "Snort Local Rule" --text "Make Rule" --separator " "  \
+	--add-entry "Rule Action: alert or log" 				\
+	--add-entry "Rule Protocol: ip tcp udp icmp"				\
+	--add-entry 'Source IP: x.x.x.x $HOME__NET $EXTERNAL__NET any' 		\
+	--add-entry "Source Port: port number or any"  				\
+	--add-entry "Flow Direction: ->   <>" 					\
+	--add-entry 'Destination IP: x.x.x.x $HOME__NET $EXTERNAL__NET any' 	\
+	--add-entry "Destination Port: port number or any"  			\
+	--add-entry 'Message: (msg: "Message";'					\
+	--add-entry 'Content: content: "content to search for or negate";' 	\
+	--add-entry 'Signature ID:  sid: 100000;)' >> /tmp/random 
+  
+  if [ $? == 0 ]; then
+	zenity --question --text "Your rule is `cat /tmp/random`. Are you sure you want it to be written to "$SN_RULE_PATH"" ## Shows rule for validation
+     if [ $? == 0 ]; then                                   ## If user accepts rule put rule in path and test  
+        echo `tail -n 1 /tmp/random` >> "$SN_RULE_PATH"
+        snort -T -c "$SN_CONF" -l /tmp                      ## Test configuration, used a dummy log location for portability
+  	  if [ $? == 0 ]; then	                            ## Check return value of snort test for errors
+	    nsm_sensor_ps-restart --only-snort-alert        ## Restart snort service if no errors, Does not mean good rule only that it won't break snort
+	    rm -rf /tmp/random
+	  else
+	    zenity --error --text "The rule you added failed; check your rule for errors"
+	    tail -n 1 "$SN_RULE_PATH" | wc -c |xargs -I {} truncate "$SN_RULE_PATH" -s -{}  ## Remove bad rule we just added 
+	    rm -rf /tmp/random
+          fi
+     else 
+       zenity --error --text "Run script again to adjust inputs" 
+     fi
+  else
+    zenity --warning --text "Operation Canceled"
+  fi
 }
 
-##  function to make a rule for suricata this will grow quite a bit
-snort_local (){
-  zenity --info --text "Follow the wizard and input data according to the formats provided"
-  ACTION=$(zenity --title "Rule Action" --entry --text " alert log") 
-  PROTO=$(zenity --title "Rule Protocol" --entry --text "ip tcp udp icmp")
-  SRC_IP=$(zenity --title "Source IP" --entry --text 'IP "$HOME__NET" "$EXTERNAL__NET" any')
-  SRC_PORT=$(zenity --title "Source Port" --entry --text "port i.e. 25 or any") 
-  DIR=$(zenity --title "Flow Direction" --entry --text "For -> or <>")
-  DST_IP=$(zenity --title "Destination IP" --entry --text 'IP "$HOME__NET" "$EXTERNAL__NET" any')
-  DST_PORT=$(zenity --title "Destination IP" --entry --text "port i.e. 25 or any ")
-  MSG=$(zenity --title "Snort Message" --entry --text '(msg: "Description";')
- #DEPTH --TO DO write in advanced options
- #OFFSET -- TO DO write in advance options
-  CONTENT=$(zenity --title "Content Match" --entry --text 'content: "Content to match; not tested with PCRE";') ## TO DO test with PCRE
-  SID=$(zenity --title "Rule SID" --entry --text 'sid: 100000;)')
-  
-  if zenity --question --ok-label "Correct" --cancel-label "Incorrect" --title "Is Snort Rule Correct?" --text ""$ACTION" "$PROTO" "$SRC_IP" "$SRC_PORT" "$DIR" "$DST_IP" "$DST_PORT" "$MSG" "$CONTENT" "$SID""; then
- echo "$ACTION" "$PROTO" "$SRC_IP" "$SRC_PORT" "${DIR}" "$DST_IP" "$DST_PORT" "$MSG" "$CONTENT" "$SID" > /tmp/rule
-  else
-    zenity --warning --text "Fix it then"
-    exit 2
-  fi
-  
-  /bin/cat /tmp/rule  >> "$SN_RULE_PATH"        ## Put new rule in rule path then testing 
-  snort -T -c "$SN_CONF" -l /tmp                ## Test configuration, used a dummy log location for portability
-  if [ $? == 0 ]; then                          ## If return value of test is good write rule and clean up /tmp/rule  
-     rm -rf /tmp/rule
-     nsm_sensor_ps-restart --only-snort-alert   ## Restart snort service
-  else
-     zenity --error --text "The rule you added failed; check your rule for errors"
-     rm -rf /tmp/rule                           ##  Cleanup temp file path
-     tail -n 1 "$SN_RULE_PATH" | wc -c |xargs -I {} truncate "$SN_RULE_PATH" -s -{}  ## Remove bad rule we just added 
-  fi
-}
-
-##  function to make a suricata rule need to find a way to make this accurate  
-suri_local (){
-  zenity --info --text "Follow the wizard and input data according to the formats provided"
-  ACTION=$(zenity --title "Rule Action" --entry --text " alert log") 
-  PROTO=$(zenity --title "Rule Protocol" --entry --text "ip tcp udp icmp")
-  SRC_IP=$(zenity --title "Source IP" --entry --text 'IP "$HOME__NET" "$EXTERNAL__NET" any')
-  SRC_PORT=$(zenity --title "Source Port" --entry --text "port i.e. 25 or any") 
-  DIR=$(zenity --title "Flow Direction" --entry --text "For -> or <>")
-  DST_IP=$(zenity --title "Destination IP" --entry --text 'IP "$HOME__NET" "$EXTERNAL__NET" any')
-  DST_PORT=$(zenity --title "Destination IP" --entry --text "port i.e. 25 or any ")
-  MSG=$(zenity --title "Snort Message" --entry --text '(msg: "Description";')
- #DEPTH --TO DO write in advanced options
- #OFFSET -- TO DO write in advance options
-  CONTENT=$(zenity --title "Content Match" --entry --text 'content: "Content to match; not tested with PCRE";') ## TO DO test with PCRE
-  SID=$(zenity --title "Rule SID" --entry --text 'sid: 100000;)')
-  
-  if zenity --question --ok-label "Correct" --cancel-label "Incorrect" --title "Is Snort Rule Correct?" --text ""$ACTION" "$PROTO" "$SRC_IP" "$SRC_PORT" "${DIR}" "$DST_IP" "$DST_PORT" "$MSG" "$CONTENT" "$SID""; then
- echo "$ACTION" "$PROTO" "$SRC_IP" "$SRC_PORT" "${DIR}" "$DST_IP" "$DST_PORT" "$MSG" "$CONTENT" "$SID" > /tmp/rule
-  else
-    zenity --warning --text "Fix your rule by running the script again"
-    exit 2
-  fi
-}
+##  TO DO function to make a suricata rule..This will look shockingly similar to snort I imagine   
 
 ##  ask the user what IDS this is for
 IDS=$(zenity --entry --text "Is this a rule for snort or suricata IDS?")
@@ -102,4 +87,3 @@ IDS=$(zenity --entry --text "Is this a rule for snort or suricata IDS?")
 	*)	   zenity --error --text  "Usage -- enter <b>snort</b> or <b>suricata</b> to make a rule. exiting"; exit ;;
    
     esac
- 
