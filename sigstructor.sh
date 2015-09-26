@@ -48,7 +48,7 @@ snort_local (){
   ## zenity form for basic rules.  Not tested with PCRE or advanced options                                            
   zenity --forms --title "Snort Local Rule" --text "Make Rule" --separator " "  \
 	--add-entry "Rule Action: alert or log" 				\
-	--add-entry "Rule Protocol: ip tcp udp icmp"				\
+	--add-entry "Rule Protocol: tcp udp icmp"				\
 	--add-entry 'Source IP: x.x.x.x $HOME__NET $EXTERNAL__NET any' 		\
 	--add-entry "Source Port: port number or any"  				\
 	--add-entry "Flow Direction: ->   <>" 					\
