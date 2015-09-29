@@ -56,7 +56,7 @@ snort_local (){
 	--add-entry 'Signature ID:  sid: 100000;)' >> /tmp/random 
   
   if [ $? == 0 ]; then
-	zenity --question --text "Your rule is `cat /tmp/random`. Are you sure you want it to be written to "$SN_RULE_PATH"" ## Shows rule for validation
+	zenity --question --text "Your rule is `cat /tmp/random`. Do you want it to be written to "$SN_RULE_PATH"" ## Shows rule for validation
      if [ $? == 0 ]; then                                   ## If user accepts rule put rule in path and test  
         echo `tail -n 1 /tmp/random` >> "$SN_RULE_PATH"
         snort -T -c "$SN_CONF" -l /tmp                      ## Test configuration, used a dummy log location for portability
@@ -70,6 +70,7 @@ snort_local (){
           fi
      else 
        zenity --error --text "Run script again to adjust inputs" 
+       rm -rf /tmp/random
      fi
   else
     zenity --warning --text "Operation Canceled"
@@ -83,7 +84,7 @@ IDS=$(zenity --entry --text "Is this a rule for snort or suricata IDS?")
 
 ##  based on answer call the appropriate function. if incorrect answer exit with error
     case "$IDS" in 
-      	suricata)  suri_new ;;
+      	suricata)  suri_type ;;
       	snort)	   snort_type ;;
 	*)	   zenity --error --text  "Usage -- enter <b>snort</b> or <b>suricata</b> to make a rule. exiting"; exit ;;
    
