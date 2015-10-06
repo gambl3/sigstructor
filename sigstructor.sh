@@ -1,10 +1,10 @@
 ##########################################################################################################
 #  Basic Snort/Suricata Rule creator. This script expects users to understand syntax of Snort/Suricata.  #
 #  The GUI will accept whatever is input so use with prudence. No input validation at this time. This    #
-#  code ain't pretty but It'll work in a pinch                                                           #
+#  code ain't pretty but It'll work to make a basic rule in a pinch                                      #
 #                                                                                                        #
 #                                                                                                        #
-#  v1.0  R. Grubbs 'gambl3'  22 SEP 15                                                                   #
+#  v1.0  R. Grubbs 'gambl3'  6 October 15                                                                #
 ##########################################################################################################
 
 #!/bin/bash 
@@ -28,7 +28,7 @@ snort_type (){
 snort_white (){
   zenity --forms --title "Whitelist Rule" --text "Add IP to Whitelist" --separator " " --add-entry "IP Format: x.x.x.x/x" --add-entry "Description Format:  #comment"  >> "$SN_WHITE_LIST_PATH"
   if [ $? == "0" ]; then
-    nsm_sensor_ps-restart --only-snort-alert
+    rule-update
   else
     zenity --error --text "Operation Canceled"
   fi 
@@ -36,7 +36,7 @@ snort_white (){
 snort_black (){
   zenity --forms --title "Blacklist Rule" --text "Add IP to Blacklist" --separator " " --add-entry "IP Format: x.x.x.x/x" --add-entry "Description Format:  #comment" >> "$SN_BLACK_LIST_PATH"
   if [ $? == "0" ]; then
-    nsm_sensor_ps-restart --only-snort-alert
+    rule-update
   else
     zenity --error --text "Operation Canceled"
   fi
@@ -59,9 +59,9 @@ snort_local (){
 	zenity --question --text "Your rule is `cat /tmp/random`. Do you want it to be written to "$SN_RULE_PATH"" ## Shows rule for validation
      if [ $? == 0 ]; then                                   ## If user accepts rule put rule in path and test  
         echo `tail -n 1 /tmp/random` >> "$SN_RULE_PATH"
-        snort -T -c "$SN_CONF" -l /tmp                      ## Test configuration, used a dummy log location for portability
+        snort -T -c "$SN_CONF" -l /tmp                      ## Test configuration, used a dummy log location for portability. If rules passes it only means it won't break snort
   	  if [ $? == 0 ]; then	                            ## Check return value of snort test for errors
-	    nsm_sensor_ps-restart --only-snort-alert        ## Restart snort service if no errors, Does not mean good rule only that it won't break snort
+	    rule-update                                     ## Run pulled pork which will restart snort service
 	    rm -rf /tmp/random
 	  else
 	    zenity --error --text "The rule you added failed; check your rule for errors"
